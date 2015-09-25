@@ -1,22 +1,20 @@
-#encoding: UTF-8
-
-require 'rest_client'
-require "base64"
-require "json"
+require 'excon'
+require 'base64'
+require 'json'
 
 module Iugu
+  # Handle all requests
   class APIRequest
-
     def self.request(method, url, data = {}, authorization_token = nil)
       Iugu::Utils.auth_from_env if Iugu.api_key.nil?
-      raise Iugu::AuthenticationException, "Chave de API não configurada. Utilize Iugu.api_key = ... para configurar." if Iugu.api_key.nil?
-      handle_response self.send_request method, url, data, authorization_token
+      fail Iugu::AuthenticationException, 'API Key not set' if Iugu.api_key.nil?
+      handle_response send_request(method, url, data, authorization_token)
     end
 
-    private
+    # private
 
     def self.send_request(method, url, data, authorization_token)
-      RestClient::Request.execute build_request(method, url, data, authorization_token)
+      Excon.call(method, build_request(method, url, data, authorization_token))
     rescue RestClient::ResourceNotFound
       raise ObjectNotFound
     rescue RestClient::UnprocessableEntity => ex
@@ -39,8 +37,12 @@ module Iugu
 
     def self.handle_response(response)
       response_json = JSON.parse(response.body)
-      raise ObjectNotFound if response_json.is_a?(Hash) && response_json['errors'] == "Not Found"
-      raise RequestWithErrors, response_json['errors'] if response_json.is_a?(Hash) && response_json['errors'] && response_json['errors'].length > 0
+      if response_json.is_a?(Hash) && response_json['errors'] == 'Not Found'
+        fail ObjectNotFound
+      end
+      if response_json.is_a?(Hash) && response_json['errors'] && response_json['errors'].length > 0
+        fail RequestWithErrors, response_json['errors']
+      end
       response_json
     rescue JSON::ParserError
       raise RequestFailed
@@ -54,7 +56,7 @@ module Iugu
         accept_charset: 'utf-8',
         user_agent: 'Iugu RubyLibrary',
         accept_language: 'pt-br;q=0.9,pt-BR',
-        #content_type: 'application/x-www-form-urlencoded; charset=utf-8'
+        # content_type: 'application/x-www-form-urlencoded; charset=utf-8'
         content_type: 'application/json; charset=utf-8'
       }
     end

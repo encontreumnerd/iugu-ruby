@@ -1,3 +1,3 @@
 module Iugu
-  VERSION = "1.0.9"
+  VERSION = "0.0.1"
 end
