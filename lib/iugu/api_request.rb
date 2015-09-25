@@ -14,23 +14,16 @@ module Iugu
     # private
 
     def self.send_request(method, url, data, authorization_token)
-      Excon.call(method, build_request(method, url, data, authorization_token))
-    rescue RestClient::ResourceNotFound
-      raise ObjectNotFound
-    rescue RestClient::UnprocessableEntity => ex
-      raise RequestWithErrors.new JSON.parse(ex.response)['errors']
-    rescue RestClient::BadRequest => ex
-      raise RequestWithErrors.new JSON.parse(ex.response)['errors']
+      m = Excon.method(method.downcase)
+      m.call(url, build_request(data, authorization_token))
     end
 
-    def self.build_request(method, url, data, authorization_token)
+    def self.build_request(data, authorization_token)
       data = data.to_json unless data[:multipart]
       {
         verify_ssl: true,
         headers: default_headers(authorization_token),
-        method: method,
         payload: data,
-        url: url,
         timeout: 30
       }
     end
